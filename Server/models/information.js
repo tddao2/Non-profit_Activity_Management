@@ -15,7 +15,7 @@ let informationSchema = new Schema ({
         type: String, required:true
     },
     socialMedia: {                                   // 4. How did you hear about our distribution?
-        type: String, required:true
+        type: Array, required:true, "default" : []
     },
     zipCode: {                                       // 5. Zip Code
         type: Number, required:true
@@ -47,12 +47,9 @@ let informationSchema = new Schema ({
         type: String, required:true
     },
     event: {
-        eventType: {type: String, default: null},
-        date: {type: Date, default: null},
-        location: {type: String, default: null}
+        type: Array, required:true, "default" : []
     }
-},  {
-    timestamps: true           // to get createdAt and updatedAt. CreatedAT will remain until deleted. Any updates for event schema will make changes on updatedAt
 });
 
+informationSchema.index({ firstName: 1, lastName: 1 , phoneNumber: 1}, { unique: true }); //validation for firstname, lastname, and phone number to be UNIQUE together
 module.exports = mongoose.model('informations', informationSchema)

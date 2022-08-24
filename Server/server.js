@@ -1,17 +1,13 @@
 const express = require("express");
-
-// Require mongoose library
-const mongoose = require("mongoose"); 
-
+const mongoose = require("mongoose"); // Require mongoose library
 // Adding better longging functionality
 const morgan = require("morgan");
-
+const cors = require('cors');
 
 // We will pass them as environment variables. This module helps us to load environment variables from a .env file into process.env
 require("dotenv").config();   // Require the dotenv
 
- //Create new instance
-const app = express();
+const app = express(); //Create new instance
 
 // import the event schema from models folder
 let Event = require('./models/event');
@@ -30,12 +26,9 @@ mongoose
     });
 
 const PORT = process.env.PORT || 3000; //Declare the port number
-
-// Allows us to access request body as req.body
-app.use(express.json()); 
-
-// Enable incoming request logging in dev mode 
-app.use(morgan("dev"));  
+app.use(cors());
+app.use(express.json()); //allows us to access request body as req.body
+app.use(morgan("dev"));  //enable incoming request logging in dev mode
 
 // create an endpoint to get all events from the API
 app.get('/events', (req, res, next) => {
@@ -50,6 +43,22 @@ app.get('/events', (req, res, next) => {
     })
 });
 
+// >>>>>>>>Added new endpoint<<<<<<<<<
+// endpoint for retrieving event by _id
+app.get('/event/:id', (req, res, next) => {
+    Event.findOne({ _id: req.params.id}, (error, data) => {
+        if (error) {
+            return next(error)
+        } else if (data === null) {
+            // Sending 404 when not found something is a good practice
+          res.status(404).send('Event not found');
+        }
+        else {
+          res.json(data)
+        }
+    });
+});
+
 //create an endpoint to get the 3 most events from the API
 app.get('/currentEvents', (req, res, next) => {
     //very plain way to get all the data from the collection through the mongoose schema
@@ -60,8 +69,33 @@ app.get('/currentEvents', (req, res, next) => {
         } else {
             res.json(data)
         }
-    // }).sort({_id:-1}).limit(3)
-    }).sort({createdAt:-1}).limit(3)
+    }).sort({date:-1}).limit(3) // methods of MongoDB to get the 3 most events from the API
+});
+
+// >>>>>>>>Added new endpoint<<<<<<<<<
+// //create an endpoint to get all events by eventType (reduced Data >>> increase performance)
+app.get('/allEvents', (req, res, next) => {  
+    Event.aggregate([{
+        $project: {
+            _id: 0,
+            eventType: 1
+        }
+    }, {
+        $group: {               // Get all DISTINCT eventType.
+            _id: '$eventType'
+        }
+    }, {
+        $sort: {
+            _id: 1              // Get all DISTINCT eventType in alphabetical order to be displayed in client side
+        }
+    }], (error, data) => {
+            if (error) {
+                //here we are using a call to next() to send an error message back
+                return next(error)
+            } else {
+                res.json(data)
+            }
+        })
 });
 
 // endpoint that will create an event document
@@ -105,8 +139,9 @@ app.delete('/event/:id', (req, res, next) => {
     });
 });
 
+// >>>>>>>>Changed name of endpoint<<<<<<<<<
 //create an endpoint to get all individuals information from the API
-app.get('/informations', (req, res, next) => {
+app.get('/attendees', (req, res, next) => {
     //very plain way to get all the data from the collection through the mongoose schema
     indiv_Info.find((error, data) => {
         if (error) {
@@ -117,9 +152,9 @@ app.get('/informations', (req, res, next) => {
         }
     })
 });
-
+// >>>>>>>>Changed name of endpoint<<<<<<<<<
 // endpoint for retrieving an information document by _id
-app.get('/information/:id', (req, res, next) => {
+app.get('/attendee/:id', (req, res, next) => {
     indiv_Info.findOne({ _id: req.params.id}, (error, data) => {
         if (error) {
             return next(error)
@@ -133,212 +168,49 @@ app.get('/information/:id', (req, res, next) => {
     });
 });
 
-//create an endpoint to know how many times and in what ways individuals have accessed events, individual's history
-app.get('/trackingInfos', (req, res, next) => {
+// >>>>>>>>Added an new endpoint<<<<<<<<<
+// create an endpoint to know how many times and in what ways individuals have accessed events, individual's history
+app.get('/attendeeHistory/:id', (req, res, next) => {
     //very plain way to get all the data from the collection through the mongoose schema
     indiv_Info.aggregate([{
-            $group: {
-                _id: {firstName:'$firstName',
-                    lastName:'$lastName',
-                    phoneNumber: '$phoneNumber',
-                    zipCode: '$zipCode'
-                },
-                Count: {
-                    $sum: 1
-                },
-                socialMedia: {
-                    $addToSet: '$socialMedia'       // $addToSet returns an array of all unique values that results from applying an expression to each document in a group.
-                },
-                COVID19: {
-                    $addToSet: '$COVID19'
-                },
-                servicesNeeding: {
-                    $addToSet: '$servicesNeeding'
-                },
-                numOfChildren: {
-                    $addToSet: '$numOfChildren'
-                },
-                OverAge65: {
-                    $addToSet: '$OverAge65'
-                },
-                veteran: {
-                    $addToSet: '$veteran'
-                },
-                Ethnicity: {
-                    $addToSet: '$Ethnicity'
-                },
-                event: {
-                    $addToSet: '$event'
-                }
-            }}
-        ], (error, data) => {
-            if (error) {
-                //here we are using a call to next() to send an error message back
-                return next(error)
-            } else {
-                res.json(data)
-            }
-        })
-});
-
-//create an endpoint to know how many times and in what ways AN individual has accessed events, individual's history
-app.get('/trackingInfo/:firstName&:lastName', (req, res, next) => {
-    //very plain way to get all the data from the collection through the mongoose schema
-    indiv_Info.aggregate([{
-        $match: {                               // Using aggregation - match function to necessary data,  group them into 1 if there are documents that have the same data
-            firstName: req.params.firstName,
-            lastName: req.params.lastName
-        }
-    }, {
-        $group: {
-            _id: {
-                firstName: '$firstName',
-                lastName: '$lastName',
-                phoneNumber: '$phoneNumber',
-                zipCode: '$zipCode'
-            },
-            Count: {
-                $sum: 1
-            },
-            socialMedia: {
-                $addToSet: '$socialMedia'      // $addToSet returns an array of all unique values that results from applying an expression to each document in a group.
-            },
-            COVID19: {
-                $addToSet: '$COVID19'
-            },
-            servicesNeeding: {
-                $addToSet: '$servicesNeeding'
-            },
-            numOfChildren: {
-                $addToSet: '$numOfChildren'
-            },
-            OverAge65: {
-                $addToSet: '$OverAge65'
-            },
-            veteran: {
-                $addToSet: '$veteran'
-            },
-            Ethnicity: {
-                $addToSet: '$Ethnicity'
-            },
-            event: {
-                $addToSet: '$event'
-            }
-        }}
-        ], (error, data) => {
-            if (error) {
-                //here we are using a call to next() to send an error message back
-                return next(error)
-            } else {
-                res.json(data)
-            }
-        })
-});
-
-// Supervisor should be able to filter the data by zip code
-app.get('/zipcodeTracking/:zipcode', (req, res, next) => {
-    indiv_Info.aggregate([{
-        $match: {                                  // Using aggregation to match necessary data,  group them into 1 if there are documents that have the same data
-            zipCode: parseInt(req.params.zipcode)
-
-        }
-    }, {
-        $group: {
-            _id: {
-                firstName: '$firstName',
-                lastName: '$lastName',
-                phoneNumber: '$phoneNumber',
-                zipCode: '$zipCode'
-            }
-        }
-    }, {
-        $project: {                                // make the data that I want to display
-            _id: {
-                firstName: 1,
-                lastName: 1
-            }
-        }
-    }], (error, data) => {
-            if (error) {
-                //here we are using a call to next() to send an error message back
-                return next(error)
-            } else {
-                console.log(req.params.zipcode)
-                res.json(data)
-            }
-        })
-});
-
-// Supervisor should be able to filter the number of individuals by zip code
-app.get('/zipcodeTracking/count/:zipcode', (req, res, next) => {  
-    indiv_Info.aggregate([{                 // Using aggregation to match necessary data,  group them into 1 if there are documents that have the same data,
-        $match: {                           // make the data that I want to display, and get the count
-            zipCode: parseInt(req.params.zipcode)
-
-        }
-    }, {
-        $group: {
-            _id: {
-                firstName: '$firstName',
-                lastName: '$lastName',
-                phoneNumber: '$phoneNumber',
-                zipCode: '$zipCode'
-            }
-        }
-    }, {
-        $project: {
-            _id: {
-                firstName: 1,
-                lastName: 1
-            }
-        }
-    }, {
-        $count: 'Total Applicants'
-
-    }], (error, data) => {
-            if (error) {
-                //here we are using a call to next() to send an error message back
-                return next(error)
-            } else {
-                console.log(req.params.zipcode)
-                res.json(data)
-            }
-        })
-});
-
-// Supervisor should be able to filter the data by eventType
-app.get('/eventTypeTracking/:eventType', (req, res, next) => {  
-    indiv_Info.aggregate([{                              // Using aggregation to match necessary data,  group them into 1 if there are documents that have the same data, make the data that I want to display
         $match: {
-            "event.eventType": req.params.eventType
-
-        }
-    }, {
-        $group: {
-            _id: {
-                firstName: '$firstName',
-                lastName: '$lastName',
-                phoneNumber: '$phoneNumber',
-                zipCode: '$zipCode'
-            }
+            '_id': req.params.id
         }
     }, {
         $project: {
-            _id: {
-                firstName: 1,
-                lastName: 1
+            'firstName': 1,
+            'lastName': 1,
+            'phoneNumber': 1,
+            'socialMedia': 1,
+            'zipCode': 1,
+            'COVID19': 1,
+            'servicesNeeding': 1,
+            'numOfChildren': 1,
+            'OverAge65': 1,
+            'veteran': 1,
+            'Ethnicity': 1,
+            'Count': {        // if condition to get the count of events 
+                $cond: {
+                    if: {
+                        $isArray: '$event'
+                    },
+                    then: {
+                        $size: '$event'
+                    },
+                    else: 'NA'
+                }
             }
         }
-    }], (error, data) => {
-            if (error) {
-                //here we are using a call to next() to send an error message back
-                return next(error)
-            } else {
-                res.json(data)
-            }
-        })
+    }
+    ], (error, data) => {
+        if (error) {
+            //here we are using a call to next() to send an error message back
+            return next(error)
+        } else {
+            res.json(data)
+        }
+    })
 });
-
 
 // endpoint that will create an information document
 app.post('/information', (req, res, next) => {
@@ -347,38 +219,255 @@ app.post('/information', (req, res, next) => {
           return next(error)
       }   else {
           // res.json(data)
-          res.send('Information is added to the database');
+        //   res.send('Information is added to the database');
+          res.send('You have joined the event successfully. Thank you !!!');
       }
   });
 });
 
-// Updating - editing an information by _id - I want to use PUT
-app.put('/information/:id', (req, res, next) => {
-    indiv_Info.findOneAndUpdate({ _id: req.params.id }, {
-        $set: req.body
-    }, (error, data) => {
-        if (error) {
-            return next(error);
-        } else {
-            res.send('Event is edited via PUT');
-            console.log('Event successfully updated!', data)
+// >>>>>>>>Added an new endpoint<<<<<<<<<
+// Endpoint to get attendees by eventType
+app.get('/eventType/:type', (req, res, next) => {  
+    indiv_Info.aggregate([{
+        $project: {
+            firstName: 1,
+            lastName: 1,
+            phoneNumber: 1,
+            zipCode: 1,
+            event: 1
         }
-    })
+    }, {
+        $match: {
+            'event.eventType': req.params.type         // Get eventType from front-end
+        }
+    }], (error, data) => {
+            if (error) {
+                //here we are using a call to next() to send an error message back
+                return next(error)
+            } else {
+                res.json(data)
+            }
+        })
 });
 
-//delete an information by _id
-app.delete('/information/:id', (req, res, next) => {
-    //mongoose will use_id of document
-    indiv_Info.findOneAndRemove({ _id: req.params.id}, (error, data) => {
-        if (error) {
-            return next(error);
-        } else {
-            res.status(200).json({
-                msg: data
-            });
-        //  res.send('Information is deleted');
+// >>>>>>>>Added an new endpoint<<<<<<<<<
+// Endpoint to get all zipcode only
+app.get('/AllzipCode', (req, res, next) => {  
+    indiv_Info.aggregate([{
+        $group: {
+            _id: "$zipCode"         // GET all DISTINCT ZIPCODE
         }
-    });
+    }, {
+        $sort: {
+            _id: 1                  // THEN SORT THEM
+        }
+    }], (error, data) => {
+            if (error) {
+                //here we are using a call to next() to send an error message back
+                return next(error)
+            } else {
+                res.json(data)
+            }
+        })
+});
+
+// >>>>>>>>Added an new endpoint<<<<<<<<<
+// Endpoint to get attendees by zipCode
+app.get('/zipCode/:zipCode', (req, res, next) => {  
+    indiv_Info.aggregate([{
+        $project: {
+            firstName: 1,
+            lastName: 1,
+            phoneNumber: 1,
+            zipCode: 1
+        }
+    }, {
+        $match: {
+            'zipCode': parseInt(req.params.zipCode)       // GET THE ZIPCODE FROM FRONT-END
+        }
+    }], (error, data) => {
+            if (error) {
+                //here we are using a call to next() to send an error message back
+                return next(error)
+            } else {
+                res.json(data)
+            }
+        })
+});
+
+// >>>>>>>>Added an new endpoint<<<<<<<<<
+// Endpoint to get all dates
+app.get('/Alldates', (req, res, next) => {  
+    Event.aggregate([{
+        $project: {
+            _id: 0,
+            date: 1
+        }
+    }, {
+        $group: {               // GET all DISTINCT DATE
+            _id: '$date'
+        }
+    }, {
+        $sort: {
+            _id: 1              // THEN SORT THE DATE
+        }
+    }], (error, data) => {
+            if (error) {
+                //here we are using a call to next() to send an error message back
+                return next(error)
+            } else {
+                res.json(data)
+            }
+        })
+});
+// >>>>>>>>Added an new endpoint<<<<<<<<<
+// Endpoint to get attendees by Date
+app.get('/date/:date', (req, res, next) => {  
+    indiv_Info.aggregate([{
+        $match: {
+            'event.date': req.params.date     // get date from front-end
+        }
+    }, {
+        $project: {
+            _id: 0,
+            firstName: 1,
+            lastName: 1,
+            phoneNumber: 1,
+            zipCode: 1
+        }
+    }], (error, data) => {
+            if (error) {
+                //here we are using a call to next() to send an error message back
+                return next(error)
+            } else {
+                res.json(data)
+            }
+        })
+});
+
+// >>>>>>>>Added an new endpoint<<<<<<<<<
+// Endpoint to get number of attendees join events in different EventType(data for summary graph)
+app.get('/AttendeesJoined', (req, res, next) => {  
+    indiv_Info.aggregate([{
+        $unwind: {                   // enables us to work with the values of the fields within an array.
+            path: '$event'
+        }
+    }, {
+        $group: {
+            _id: '$event',
+            count: {                        // finding counts
+                '$sum': 1
+            }
+        }
+    }, {
+        $replaceRoot: {
+            newRoot: {
+                '$arrayToObject': [           // convert data to an array contains object
+                    [{
+                        'k': '$_id.eventType',
+                        'v': '$count'
+                    }]
+                ]
+            }
+        }
+    }, {
+        $sort: {
+            newRoot: -1
+        }
+    }], (error, data) => {
+            if (error) {
+                //here we are using a call to next() to send an error message back
+                return next(error)
+            } else {
+                res.json(data)
+            }
+        })
+});
+
+// >>>>>>>>Added an new endpoint<<<<<<<<<
+// Endpoint to get number of attendees who RECEIVED Covid19 vaccine in different EventType(data for summary graph)
+app.get('/VaccinatedAttendees', (req, res, next) => {  
+    indiv_Info.aggregate([{
+        $match: {
+            "COVID19.ReceivedVaccine": 'Yes'       // Get all attendees who answered 'Yes' for ReceivedVaccine
+        }
+    }, {
+        $unwind: {                          // enables us to work with the values of the fields within an array.
+            path: '$event'
+        }
+    }, {
+        $group: {
+            _id: '$event',
+            count: {                       // finding counts
+                '$sum': 1 
+            }
+        }
+    }, {
+        $replaceRoot: {
+            newRoot: {
+                '$arrayToObject': [           // convert data to an array contains object
+                    [{
+                        'k': '$_id.eventType', 
+                        'v': '$count'
+                    }]
+                ]
+            }
+        }
+    }, {
+        $sort: {
+            newRoot: -1
+        }
+    }], (error, data) => {
+            if (error) {
+                //here we are using a call to next() to send an error message back
+                return next(error)
+            } else {
+                res.json(data)
+            }
+        })
+});
+
+// >>>>>>>>Added an new endpoint<<<<<<<<<
+// Endpoint to get number of attendees who WANTED Covid19 vaccine in different EventType(data for summary graph)
+app.get('/WantedVaccine', (req, res, next) => {  
+    indiv_Info.aggregate([{
+        $match: {
+            "COVID19.WantedCOVIDvaccine": 'Yes'  // Get all attendees who answered 'Yes' for WantedCOVIDvaccine
+        }
+    }, {
+        $unwind: {                    // enables us to work with the values of the fields within an array.
+            path: '$event'
+        }
+    }, {
+        $group: {
+            _id: '$event',
+            count: {                  // finding counts
+                '$sum': 1
+            }
+        }
+    }, {
+        $replaceRoot: {               // convert data to an array contains object
+            newRoot: {
+                '$arrayToObject': [
+                    [{
+                        'k': '$_id.eventType',
+                        'v': '$count'
+                    }]
+                ]
+            }
+        }
+    }, {
+        $sort: {
+            newRoot: -1
+        }
+    }], (error, data) => {
+            if (error) {
+                //here we are using a call to next() to send an error message back
+                return next(error)
+            } else {
+                res.json(data)
+            }
+        })
 });
 
 app.listen(PORT, () => {
@@ -390,8 +479,4 @@ app.use(function (err, req, res, next) {
     if (!err.statusCode) 
         err.statusCode = 500;
     res.status(err.statusCode).send(err.message);
-});
-
-app.listen(PORT, () => {
-    console.log(`Server started listening at http://localhost:${PORT}`);
 });
