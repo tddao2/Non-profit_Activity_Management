@@ -269,6 +269,129 @@ app.get('/zipcodeTracking/:zipcode', (req, res, next) => {
         })
 });
 
+// Supervisor should be able to filter the number of individuals by zip code
+app.get('/zipcodeTracking/count/:zipcode', (req, res, next) => {  
+    indiv_Info.aggregate([{                 // Using aggregation to match necessary data,  group them into 1 if there are documents that have the same data,
+        $match: {                           // make the data that I want to display, and get the count
+            zipCode: parseInt(req.params.zipcode)
+
+        }
+    }, {
+        $group: {
+            _id: {
+                firstName: '$firstName',
+                lastName: '$lastName',
+                phoneNumber: '$phoneNumber',
+                zipCode: '$zipCode'
+            }
+        }
+    }, {
+        $project: {
+            _id: {
+                firstName: 1,
+                lastName: 1
+            }
+        }
+    }, {
+        $count: 'Total Applicants'
+
+    }], (error, data) => {
+            if (error) {
+                //here we are using a call to next() to send an error message back
+                return next(error)
+            } else {
+                console.log(req.params.zipcode)
+                res.json(data)
+            }
+        })
+});
+
+// Supervisor should be able to filter the data by eventType
+app.get('/eventTypeTracking/:eventType', (req, res, next) => {  
+    indiv_Info.aggregate([{                              // Using aggregation to match necessary data,  group them into 1 if there are documents that have the same data, make the data that I want to display
+        $match: {
+            "event.eventType": req.params.eventType
+
+        }
+    }, {
+        $group: {
+            _id: {
+                firstName: '$firstName',
+                lastName: '$lastName',
+                phoneNumber: '$phoneNumber',
+                zipCode: '$zipCode'
+            }
+        }
+    }, {
+        $project: {
+            _id: {
+                firstName: 1,
+                lastName: 1
+            }
+        }
+    }], (error, data) => {
+            if (error) {
+                //here we are using a call to next() to send an error message back
+                return next(error)
+            } else {
+                res.json(data)
+            }
+        })
+});
+
+
+// endpoint that will create an information document
+app.post('/information', (req, res, next) => {
+  indiv_Info.create(req.body, (error, data) => {
+      if (error) {
+          return next(error)
+      }   else {
+          // res.json(data)
+          res.send('Information is added to the database');
+      }
+  });
+});
+
+// Updating - editing an information by _id - I want to use PUT
+app.put('/information/:id', (req, res, next) => {
+    indiv_Info.findOneAndUpdate({ _id: req.params.id }, {
+        $set: req.body
+    }, (error, data) => {
+        if (error) {
+            return next(error);
+        } else {
+            res.send('Event is edited via PUT');
+            console.log('Event successfully updated!', data)
+        }
+    })
+});
+
+//delete an information by _id
+app.delete('/information/:id', (req, res, next) => {
+    //mongoose will use_id of document
+    indiv_Info.findOneAndRemove({ _id: req.params.id}, (error, data) => {
+        if (error) {
+            return next(error);
+        } else {
+            res.status(200).json({
+                msg: data
+            });
+        //  res.send('Information is deleted');
+        }
+    });
+});
+
+app.listen(PORT, () => {
+    console.log("Server started listening on port : ", PORT);
+});
+
+app.use(function (err, req, res, next) {
+    console.error(err.message);
+    if (!err.statusCode) 
+        err.statusCode = 500;
+    res.status(err.statusCode).send(err.message);
+});
+
 app.listen(PORT, () => {
     console.log(`Server started listening at http://localhost:${PORT}`);
 });
