@@ -37,6 +37,74 @@ app.use(express.json());
 // Enable incoming request logging in dev mode 
 app.use(morgan("dev"));  
 
+// create an endpoint to get all events from the API
+app.get('/events', (req, res, next) => {
+    //very plain way to get all the data from the collection through the mongoose schema
+    Event.find((error, data) => {
+        if (error) {
+          //here we are using a call to next() to send an error message back
+            return next(error)
+        } else {
+            res.json(data)
+        }
+    })
+});
+
+//create an endpoint to get the 3 most events from the API
+app.get('/currentEvents', (req, res, next) => {
+    //very plain way to get all the data from the collection through the mongoose schema
+    Event.find((error, data) => {
+        if (error) {
+          //here we are using a call to next() to send an error message back
+            return next(error)
+        } else {
+            res.json(data)
+        }
+    // }).sort({_id:-1}).limit(3)
+    }).sort({createdAt:-1}).limit(3)
+});
+
+// endpoint that will create an event document
+app.post('/event', (req, res, next) => {
+    Event.create(req.body, (error, data) => {
+        if (error) {
+            return next(error)
+        }  else {
+            // res.json(data)
+            res.send('Event is added to the database');
+        }
+    });
+});
+
+// Updating - editing an event - we want to use PUT
+app.put('/event/:id', (req, res, next) => {
+    Event.findOneAndUpdate({ _id: req.params.id }, {
+        $set: req.body
+    }, (error, data) => {
+        if (error) {
+            return next(error);
+        } else {
+            res.send('Event is edited via PUT');
+            console.log('Event successfully updated!', data)
+        }
+    })
+});
+
+//delete an event by _id
+app.delete('/event/:id', (req, res, next) => {
+    //mongoose will use location of document
+    Event.findOneAndRemove({ _id: req.params.id}, (error, data) => {
+        if (error) {
+            return next(error);
+        } else {
+            res.status(200).json({
+                msg: data
+            });
+        //  res.send('Event is deleted');
+        }
+    });
+});
+
 app.listen(PORT, () => {
     console.log(`Server started listening at http://localhost:${PORT}`);
 });
