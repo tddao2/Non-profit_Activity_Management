@@ -3,7 +3,7 @@
     <div class="row justify-content-center">
         <div class="col-md-8">
             <!-- Show Attendees content -->                     <!--Rendering the date from Vue instance using moment library to format the date-->
-            <h1 class="text-center">Attendees Joined The Event on {{ moment(this.$route.params.date).format("L") }}</h1>
+            <h1 class="text-center">Attendees Joined The Event on {{ moment(this.$route.params.date.slice(0,10)).format("L") }}</h1>
             <h3 class="text-center"> Total: {{this.Attendees.length}} </h3> <!--Get number of attendees joined in the specific date-->
             <br>
             <table class="table table-striped table-dark table-bordered">
