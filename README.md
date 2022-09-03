@@ -10,6 +10,6 @@ Building a web application following a standard full-stack architecture using th
 
 The goal is to develop an application that will support the management of activities in a non-profit organization in the Houston area. Also, it will help to build a basic data platform for a more efficient and data driven approach to their services.
 
-### Developers
+### Developer
 
-[Cristian Dao](tri.dao2612@gmail.com)  &  [Michelle Perez](mperez44@cougarnet.uh.edu)
+[Cristian Dao](tri.dao2612@gmail.com)
